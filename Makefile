@@ -1,6 +1,6 @@
 #
-# Bloom Filter Master MakeFile
-# By Arash Partow - 2002
+# Open Bloom Filter Master MakeFile
+# By Arash Partow - 2000
 #
 # URL: http://www.partow.net/programming/hashfunctions/index.html
 #
@@ -14,11 +14,10 @@
 #
 
 COMPILER      = -c++
-OPTIONS       = -ansi -pedantic -Wall -o
-OPTIONS_LIBS  = -ansi -pedantic -Wall -c
+OPTIONS       = -ansi -pedantic -Wall -O3 -o
+OPTIONS_LIBS  = -ansi -pedantic -Wall -O3 -c
 
-
-CPP_SRC = bloom_filter.cpp
+CPP_SRC =
 
 %.o: %.h %.cpp
 	$(COMPILER) $(OPTIONS_LIBS) $*.cpp -o $@
