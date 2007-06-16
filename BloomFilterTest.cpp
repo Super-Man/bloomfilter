@@ -24,7 +24,7 @@
 #include <set>
 #include <string>
 
-#include "bloom_filter.h"
+#include "bloom_filter.hpp"
 
 
 void read_file(const std::string file_name, std::vector<std::string>& buffer);

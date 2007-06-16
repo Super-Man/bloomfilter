@@ -26,7 +26,7 @@ OBJECTS = $(CPP_SRC:.cpp=.o)
 
 all: $(OBJECTS) BloomFilterTest
 
-BloomFilterTest: $(OBJECTS) bloom_filter.h BloomFilterTest.cpp
+BloomFilterTest: $(OBJECTS) bloom_filter.hpp BloomFilterTest.cpp
 	$(COMPILER) $(OPTIONS) BloomFilterTest BloomFilterTest.cpp $(OBJECTS)
 
 clean:
