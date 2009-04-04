@@ -7,15 +7,15 @@
 # Note: You will need to download the C++ General Hash Functions library
 #
 # Copyright Notice:
-# Free use of this library is permitted under the
-# guidelines and in accordance with the most
-# current version of the Common Public License.
-# http://www.opensource.org/licenses/cpl.php
+# Free use of this library is permitted under the guidelines 
+# and in accordance with the most current version of the 
+# Common Public License.
+# http://www.opensource.org/licenses/cpl1.0.php
 #
 
 COMPILER      = -c++
-OPTIONS       = -ansi -pedantic -Wall -O3 -o
-OPTIONS_LIBS  = -ansi -pedantic -Wall -O3 -c
+OPTIONS       = -ansi -pedantic -Wall -Werror -O3 -o
+OPTIONS_LIBS  = -ansi -pedantic -Wall -Werror -O3 -c
 
 CPP_SRC =
 

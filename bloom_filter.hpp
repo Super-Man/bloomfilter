@@ -1,19 +1,19 @@
 /*
- **************************************************************************
- *                                                                        *
- *                           Open Bloom Filter                            *
- *                                                                        *
- * Author: Arash Partow - 2000                                            *
- * URL: http://www.partow.net                                             *
- * URL: http://www.partow.net/programming/hashfunctions/index.html        *
- *                                                                        *
- * Copyright notice:                                                      *
- * Free use of the Bloom Filter Library is permitted under the guidelines *
- * and in accordance with the most current version of the Common Public   *
- * License.                                                               *
- * http://www.opensource.org/licenses/cpl.php                             *
- *                                                                        *
- **************************************************************************
+ *********************************************************************
+ *                                                                   *
+ *                           Open Bloom Filter                       *
+ *                                                                   *
+ * Author: Arash Partow - 2000                                       *
+ * URL: http://www.partow.net                                        *
+ * URL: http://www.partow.net/programming/hashfunctions/index.html   *
+ *                                                                   *
+ * Copyright notice:                                                 *
+ * Free use of the Open Bloom Filter Library is permitted under the  *
+ * guidelines and in accordance with the most current version of the *
+ * Common Public License.                                            *
+ * http://www.opensource.org/licenses/cpl1.0.php                     *
+ *                                                                   *
+ *********************************************************************
 */
 
 
@@ -27,17 +27,17 @@
 #include <limits>
 
 
-const std::size_t bits_per_char   = 0x08;    // 8 bits in 1 char(unsigned)
-const unsigned char bit_mask[bits_per_char] = {
-                                                0x01,  //00000001
-                                                0x02,  //00000010
-                                                0x04,  //00000100
-                                                0x08,  //00001000
-                                                0x10,  //00010000
-                                                0x20,  //00100000
-                                                0x40,  //01000000
-                                                0x80   //10000000
-                                              };
+static const std::size_t bits_per_char   = 0x08;    // 8 bits in 1 char(unsigned)
+static const unsigned char bit_mask[bits_per_char] = {
+                                                       0x01,  //00000001
+                                                       0x02,  //00000010
+                                                       0x04,  //00000100
+                                                       0x08,  //00001000
+                                                       0x10,  //00010000
+                                                       0x20,  //00100000
+                                                       0x40,  //01000000
+                                                       0x80   //10000000
+                                                     };
 
 
 class bloom_filter
@@ -51,7 +51,7 @@ public:
                 const std::size_t& random_seed)
    : hash_table_(0),
      element_count_(element_count),
-     random_seed_(random_seed),
+     random_seed_((random_seed) ? random_seed : 0xA5A5A5A5),
      false_positive_probability_(false_positive_probability)
    {
       find_optimal_parameters();
@@ -88,7 +88,7 @@ public:
       delete[] hash_table_;
    }
 
-   void insert(const std::string key)
+   void insert(const std::string& key)
    {
       for(std::vector<bloom_type>::iterator it = salt_.begin(); it != salt_.end(); ++it)
       {
@@ -97,7 +97,7 @@ public:
       }
    }
 
-   bool contains(const std::string key) const
+   bool contains(const std::string& key) const
    {
       for(std::vector<bloom_type>::const_iterator it = salt_.begin(); it != salt_.end(); ++it)
       {
@@ -169,29 +169,36 @@ private:
    void generate_unique_salt()
    {
       const unsigned int predef_salt_count = 32;
-      const bloom_type predef_salt[predef_salt_count] =
-                       {
-                         0xAAAAAAAA, 0x55555555, 0x33333333, 0xCCCCCCCC,
-                         0x66666666, 0x99999999, 0xB5B5B5B5, 0x4B4B4B4B,
-                         0xAA55AA55, 0x55335533, 0x33CC33CC, 0xCC66CC66,
-                         0x66996699, 0x99B599B5, 0xB54BB54B, 0x4BAA4BAA,
-                         0xAA33AA33, 0x55CC55CC, 0x33663366, 0xCC99CC99,
-                         0x66B566B5, 0x994B994B, 0xB5AAB5AA, 0xAAAAAA33,
-                         0x555555CC, 0x33333366, 0xCCCCCC99, 0x666666B5,
-                         0x9999994B, 0xB5B5B5AA, 0xFFFFFFFF, 0xFFFF0000
-                       };
+      static const bloom_type predef_salt[predef_salt_count] =
+                                   {
+                                     0xAAAAAAAA, 0x55555555, 0x33333333, 0xCCCCCCCC,
+                                     0x66666666, 0x99999999, 0xB5B5B5B5, 0x4B4B4B4B,
+                                     0xAA55AA55, 0x55335533, 0x33CC33CC, 0xCC66CC66,
+                                     0x66996699, 0x99B599B5, 0xB54BB54B, 0x4BAA4BAA,
+                                     0xAA33AA33, 0x55CC55CC, 0x33663366, 0xCC99CC99,
+                                     0x66B566B5, 0x994B994B, 0xB5AAB5AA, 0xAAAAAA33,
+                                     0x555555CC, 0x33333366, 0xCCCCCC99, 0x666666B5,
+                                     0x9999994B, 0xB5B5B5AA, 0xFFFFFFFF, 0xFFFF0000
+                                   };
+
       if (salt_count_ <= predef_salt_count)
       {
-         std::copy(predef_salt,predef_salt + salt_count_,std::back_inserter(salt_));
+         std::copy(predef_salt,
+                   predef_salt + salt_count_,
+                   std::back_inserter(salt_));
+          for(unsigned int i = 0; i < salt_.size(); ++i)
+          {
+            salt_[i] = salt_[i] * salt_[(i + 3) % salt_.size()] + random_seed_;
+          }
       }
       else
       {
          std::copy(predef_salt,predef_salt + predef_salt_count,std::back_inserter(salt_));
-         srand(static_cast<unsigned int>(0xAAAAAAAA ^ random_seed_));
+         srand(static_cast<unsigned int>(random_seed_));
          while(salt_.size() < salt_count_)
          {
-            bloom_type current_salt = static_cast<bloom_type>(rand()) ^ static_cast<bloom_type>(rand());
-            if (current_salt == 0) continue;
+            bloom_type current_salt = static_cast<bloom_type>(rand()) * static_cast<bloom_type>(rand());
+            if (0 == current_salt) continue;
             bool duplicate_found = false;
             for(std::vector<bloom_type>::iterator it = salt_.begin(); it != salt_.end(); ++it)
             {
@@ -214,9 +221,9 @@ private:
       double min_m  = std::numeric_limits<double>::infinity();
       double min_k  = 0.0;
       double curr_m = 0.0;
-      for(double k = 0; k < 1000.0; k++)
+      for(double k = 0.0; k < 1000.0; k++)
       {
-         if ((curr_m = ((- k * element_count_) / std::log(1 - std::pow(false_positive_probability_,1 / k)))) < min_m)
+         if ((curr_m = ((- k * element_count_) / std::log(1 - std::pow(false_positive_probability_, 1.0 / k)))) < min_m)
          {
             min_m = curr_m;
             min_k = k;
@@ -229,10 +236,17 @@ private:
 
    bloom_type hash_ap(const std::string& str,bloom_type hash) const
    {
-      for(std::size_t i = 0; i < str.length(); i++)
+      std::size_t remaining_length = str.size();
+      std::size_t i = 0;
+      while(remaining_length >= 2)
       {
-         hash ^= ((i & 1) == 0) ? (  (hash <<  7) ^ str[i] ^ (hash >> 3)) :
-                                  (~((hash << 11) ^ str[i] ^ (hash >> 5)));
+         hash ^=    (hash <<  7) ^ str[i++] * (hash >> 3);
+         hash ^= (~((hash << 11) + str[i++] ^ (hash >> 5)));
+         remaining_length -= 2;
+      }
+      if (remaining_length)
+      {
+         hash ^= (hash <<  7) ^ str[i] * (hash >> 3);
       }
       return hash;
    }
