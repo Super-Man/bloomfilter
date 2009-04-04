@@ -11,7 +11,7 @@
  * Free use of the Bloom Filter Library is permitted under the guidelines *
  * and in accordance with the most current version of the Common Public   *
  * License.                                                               *
- * http://www.opensource.org/licenses/cpl.php                             *
+ * http://www.opensource.org/licenses/cpl1.0.php                          *
  *                                                                        *
  **************************************************************************
 */
@@ -39,7 +39,12 @@ int main(int argc, char* argv[])
    std::vector<std::string> word_list;
    std::vector<std::string> outliers;
 
-   read_file("word-list-large-2.txt",word_list);
+   std::cout << "Loading list....";
+   //read_file("word-list.txt",word_list);
+   //read_file("word-list-large.txt",word_list);
+   //read_file("word-list-extra-large.txt",word_list);
+   //read_file("random-list.txt",word_list);
+   std::cout << " Complete." << std::endl;
 
    if (word_list.empty())
    {
@@ -53,9 +58,17 @@ int main(int argc, char* argv[])
    unsigned int random_seed = 0;
    double total_false_positive = 0.0;
 
+   std::size_t word_list_storage_size = 0;
+   for(unsigned int i = 0; i < word_list.size(); ++i)
+   {
+      word_list_storage_size += word_list[i].size();
+   }
+
+   std::size_t total_numnber_of_quries = 0;
    while(random_seed < 1000)
    {
-      double probability_of_false_positive = 1.0/(1.0 * word_list.size());
+      double probability_of_false_positive = 1.0 / (1.0 * word_list.size());
+
       bloom_filter  filter(word_list.size(),probability_of_false_positive,random_seed++);
 
       for(std::vector<std::string>::iterator it = word_list.begin(); it != word_list.end(); ++it)
@@ -75,22 +88,21 @@ int main(int argc, char* argv[])
       {
          if (filter.contains(*it))
          {
-            filter.contains(*it);
             //std::cout << "ERROR: key that does not exist found! => " << (*it) << std::endl;
             total_false_positive++;
          }
       }
 
-      std::size_t total_numnber_of_quries = (random_seed + 1) * (outliers.size() + word_list.size());
+      total_numnber_of_quries +=  (outliers.size() + word_list.size());
       double current_pfp = total_false_positive / (1.0 * total_numnber_of_quries);
 
-      std::cout << "Round: " << random_seed <<
-                   "\tTotal queries: " << total_numnber_of_quries  <<
-                   "\tFalse queries: " << total_false_positive <<
-                   "\tIPFP:"           << probability_of_false_positive <<
-                   "\tPFP:"            << current_pfp <<
-                   "\tDPFP:"           << current_pfp - probability_of_false_positive << std::endl;
-
+      std::cout << "Round:" << random_seed <<
+                   "\tQueries:" << total_numnber_of_quries  <<
+                   "\tFPQ:"     << total_false_positive << //Queries with False Positives
+                   "\tIPFP:"     << probability_of_false_positive <<
+                   "\tPFP:"      << current_pfp <<
+                   "\tDPFP:"     << current_pfp - probability_of_false_positive <<
+                   "\tTvD:"      << (100.0 * filter.size()) / (bits_per_char * word_list_storage_size) << "%" << std::endl;
    }
 
    return true;
@@ -136,6 +148,50 @@ void generate_outliers(const std::vector<std::string>& word_list, std::vector<st
          outliers.push_back((*it) + (*it));
          outliers.push_back(reverse((*it)) + (*it) + reverse((*it)));
       }
+   }
+
+   static const std::size_t rand_str_size = 120;
+   static const std::string rand_str[rand_str_size] =
+                  {
+                     "MJTtT","td3rC","A5JNR","1yL5B","rQnJk","jNKYF","CD0XD","pFLSG",
+                     "fxO1a","CAjBE","ORk4e","0LERI","R7d0x","Qqd7v","6Kih5","9tTCB",
+                     "yCg9U","D2Tv7","XpNHn","6zeFQ","BT2cs","WGhKW","zTv6B","TTPFk",
+                     "XjNVX","pg9yW","4pKiZ","mQUhL","xrXzR","kVRm5","NSyC4","olXm9",
+                     "UWkYy","8Ys6r","yd4Fl","5L4mB","nP3nH","f0DFb","glnQa","DlXQa",
+                     "cQdH6","eBmIN","fDj6F","ezLow","C15vu","I2Z2j","BQgzg","eVBid",
+                     "hn5TO","WZyQN","xXgsE","sL6nK","8DKD8","jcrbp","AcRak","h8N5o",
+                     "LViwC","ThEKf","O7fd5","oN0Id","OM1m0","4OLiR","VIa8N","bJZFG",
+                     "9j3rL","SzW0N","7m7pY","mY9bg","k1p3e","3OFm1","r45se","VYwz3",
+                     "pDjXt","ZcqcJ","npPHx","hA3bw","w7lSO","jEmZL","1x3AZ","FN47G",
+                     "kThNf","aC4fq","rzDwi","CYRNG","gCeuG","wCVqO","d1R60","bEauW",
+                     "KeUwW","lIKhO","RfPv3","dK5wE","1X7qu","tRwEn","1c03P","GwHCl",
+                     "CsJaO","zl4j1","e0aEc","Uskgi","rgTGR","jyR4g","Tt6l4","lRoaw",
+                     "94ult","qZwBX","eYW8S","Qf6UH","AbV56","N1hJq","JIaVe","8LHEx",
+                     "DeNbS","30I0a","hm6qw","3jcaO","4WkuA","mQ219","Gb81C","yx4HM"
+                  };
+
+
+   for(unsigned int i = 0; i < rand_str_size; ++i)
+   {
+      std::string s0 = rand_str[i];
+      std::string s1 = rand_str[(i + 1) % rand_str_size];
+      std::string s2 = rand_str[(i + 2) % rand_str_size];
+      std::string s3 = rand_str[(i + 3) % rand_str_size];
+      std::string s4 = rand_str[(i + 4) % rand_str_size];
+      std::string s5 = rand_str[(i + 5) % rand_str_size];
+      std::string s6 = rand_str[(i + 6) % rand_str_size];
+
+      outliers.push_back(s0);
+      outliers.push_back(s0 + s1);
+      outliers.push_back(s0 + s2 + s4);
+      outliers.push_back(s0 + s1 + s3);
+      outliers.push_back(s0 + s1 + s2 + s3 + s4 + s5);
+
+      outliers.push_back(reverse(s0));
+      outliers.push_back(reverse(s0 + s1));
+      outliers.push_back(reverse(s0 + s2 + s4));
+      outliers.push_back(reverse(s0 + s1 + s3));
+      outliers.push_back(reverse(s0 + s1 + s2 + s3 + s4 + s5));
    }
    std::sort(outliers.begin(),outliers.end());
 }
