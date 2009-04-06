@@ -21,6 +21,7 @@
 #include <iterator>
 #include <algorithm>
 #include <vector>
+#include <deque>
 #include <set>
 #include <string>
 
@@ -30,17 +31,16 @@
 void read_file(const std::string file_name, std::vector<std::string>& buffer);
 std::string reverse(std::string str);
 
-void generate_outliers(const std::vector<std::string>& word_list, std::vector<std::string>& outliers);
-void purify_outliers(const std::vector<std::string>& word_list,std::vector<std::string>& outliers);
+void generate_outliers(const std::vector<std::string>& word_list, std::deque<std::string>& outliers);
+void purify_outliers(const std::vector<std::string>& word_list,std::deque<std::string>& outliers);
 
-int main(int argc, char* argv[])
+int main()
 {
-
    std::vector<std::string> word_list;
-   std::vector<std::string> outliers;
+   std::deque<std::string> outliers;
 
    std::cout << "Loading list....";
-   //read_file("word-list.txt",word_list);
+   read_file("word-list.txt",word_list);
    //read_file("word-list-large.txt",word_list);
    //read_file("word-list-extra-large.txt",word_list);
    //read_file("random-list.txt",word_list);
@@ -68,8 +68,9 @@ int main(int argc, char* argv[])
    while(random_seed < 1000)
    {
       double probability_of_false_positive = 1.0 / (1.0 * word_list.size());
+      std::size_t current_false_positive =  0;
 
-      bloom_filter  filter(word_list.size(),probability_of_false_positive,random_seed++);
+      bloom_filter filter(word_list.size(),probability_of_false_positive,random_seed++);
 
       for(std::vector<std::string>::iterator it = word_list.begin(); it != word_list.end(); ++it)
       {
@@ -84,25 +85,31 @@ int main(int argc, char* argv[])
          }
       }
 
-      for(std::vector<std::string>::iterator it = outliers.begin(); it != outliers.end(); ++it)
+      for(std::deque<std::string>::iterator it = outliers.begin(); it != outliers.end(); ++it)
       {
          if (filter.contains(*it))
          {
             //std::cout << "ERROR: key that does not exist found! => " << (*it) << std::endl;
-            total_false_positive++;
+            ++total_false_positive;
+            ++current_false_positive;
          }
       }
 
-      total_numnber_of_quries +=  (outliers.size() + word_list.size());
+      total_numnber_of_quries += (outliers.size() + word_list.size());
+
+      // Overall false positive probability
       double current_pfp = total_false_positive / (1.0 * total_numnber_of_quries);
 
-      std::cout << "Round:" << random_seed <<
-                   "\tQueries:" << total_numnber_of_quries  <<
+      // Current false positive probability
+      //double current_pfp = current_false_positive /  (1.0 * total_numnber_of_quries);
+
+      std::cout << "Round:"     << random_seed <<
+                   "\tQueries:" << total_numnber_of_quries <<
                    "\tFPQ:"     << total_false_positive << //Queries with False Positives
-                   "\tIPFP:"     << probability_of_false_positive <<
-                   "\tPFP:"      << current_pfp <<
-                   "\tDPFP:"     << current_pfp - probability_of_false_positive <<
-                   "\tTvD:"      << (100.0 * filter.size()) / (bits_per_char * word_list_storage_size) << "%" << std::endl;
+                   "\tIPFP:"    << probability_of_false_positive <<
+                   "\tPFP:"     << current_pfp <<
+                   "\tDPFP:"    << (100.0 * current_pfp) / probability_of_false_positive << "%" <<
+                   "\tTvD:"     << (100.0 * filter.size()) / (bits_per_char * word_list_storage_size) << "%" << std::endl;
    }
 
    return true;
@@ -111,7 +118,9 @@ int main(int argc, char* argv[])
 
 void read_file(const std::string file_name, std::vector<std::string>& buffer)
 {
-   /* Assumes no whitespace in the lines being read in. */
+   /*
+     Assumes no whitespace in the lines being read in.
+   */
    std::ifstream in_file(file_name.c_str());
    if (!in_file)
    {
@@ -125,20 +134,12 @@ void read_file(const std::string file_name, std::vector<std::string>& buffer)
 
 std::string reverse(std::string str)
 {
-   char tempch;
-
-   /* Reverse the string */
-   for(unsigned int i = 0; i < (str.length() / 2); i++)
-   {
-      tempch = str[i];
-      str[i] = str[str.length() - i - 1];
-      str[str.length() - i - 1] = tempch;
-   }
-
+   // Not the most efficient way of doing this.
+   std::reverse(str.begin(),str.end());
    return str;
 }
 
-void generate_outliers(const std::vector<std::string>& word_list, std::vector<std::string>& outliers)
+void generate_outliers(const std::vector<std::string>& word_list, std::deque<std::string>& outliers)
 {
    for(std::vector<std::string>::const_iterator it = word_list.begin(); it != word_list.end(); ++it)
    {
@@ -148,6 +149,13 @@ void generate_outliers(const std::vector<std::string>& word_list, std::vector<st
          outliers.push_back((*it) + (*it));
          outliers.push_back(reverse((*it)) + (*it) + reverse((*it)));
       }
+
+      std::string ns = *it;
+      for(unsigned int i = 0; i < ns.size(); ++i)
+      {
+         if (1 == (i & 0x00)) ns[i] = ~ns[i];
+      }
+      outliers.push_back(ns);
    }
 
    static const std::size_t rand_str_size = 120;
@@ -196,7 +204,7 @@ void generate_outliers(const std::vector<std::string>& word_list, std::vector<st
    std::sort(outliers.begin(),outliers.end());
 }
 
-void purify_outliers(const std::vector<std::string>& word_list,std::vector<std::string>& outliers)
+void purify_outliers(const std::vector<std::string>& word_list, std::deque<std::string>& outliers)
 {
    std::set<std::string> set1;
    std::set<std::string> set2;
@@ -204,7 +212,7 @@ void purify_outliers(const std::vector<std::string>& word_list,std::vector<std::
    std::copy(word_list.begin(),word_list.end(),std::inserter(set1,set1.begin()));
    std::copy(outliers.begin(),outliers.end(),std::inserter(set2,set2.begin()));
 
-   std::vector<std::string> intersect_list;
+   std::deque<std::string> intersect_list;
 
    std::set_intersection(set1.begin(),set1.end(),
                          set2.begin(),set2.end(),
@@ -212,9 +220,9 @@ void purify_outliers(const std::vector<std::string>& word_list,std::vector<std::
 
    if(!intersect_list.empty())
    {
-      for(std::vector<std::string>::iterator it = intersect_list.begin(); it != intersect_list.end(); ++it)
+      for(std::deque<std::string>::iterator it = intersect_list.begin(); it != intersect_list.end(); ++it)
       {
-         std::vector<std::string>::iterator dup_it = std::find(outliers.begin(),outliers.end(),*it);
+         std::deque<std::string>::iterator dup_it = std::lower_bound(outliers.begin(),outliers.end(),*it);
          if(dup_it != outliers.end())
          {
             outliers.erase(dup_it);

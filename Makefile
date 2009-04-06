@@ -13,9 +13,10 @@
 # http://www.opensource.org/licenses/cpl1.0.php
 #
 
-COMPILER      = -c++
-OPTIONS       = -ansi -pedantic -Wall -Werror -O3 -o
-OPTIONS_LIBS  = -ansi -pedantic -Wall -Werror -O3 -c
+COMPILER         = -c++
+OPTIMIZATION_OPT = -O3
+OPTIONS          = -ansi -pedantic -Wall -Werror $(OPTIMIZATION_OPT) -o
+OPTIONS_LIBS     = -ansi -pedantic -Wall -Werror $(OPTIMIZATION_OPT) -c
 
 CPP_SRC =
 
