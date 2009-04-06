@@ -20,14 +20,15 @@
 #ifndef INCLUDE_BLOOM_FILTER_HPP
 #define INCLUDE_BLOOM_FILTER_HPP
 
-#include <string>
-#include <vector>
+#include <cstddef>
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <string>
+#include <vector>
 
 
-static const std::size_t bits_per_char   = 0x08;    // 8 bits in 1 char(unsigned)
+static const std::size_t bits_per_char = 0x08;    // 8 bits in 1 char(unsigned)
 static const unsigned char bit_mask[bits_per_char] = {
                                                        0x01,  //00000001
                                                        0x02,  //00000010
@@ -50,30 +51,29 @@ public:
                 const double& false_positive_probability,
                 const std::size_t& random_seed)
    : hash_table_(0),
-     element_count_(element_count),
+     predicted_element_count_(element_count),
+     inserted_element_count_(0),
      random_seed_((random_seed) ? random_seed : 0xA5A5A5A5),
      false_positive_probability_(false_positive_probability)
    {
       find_optimal_parameters();
       hash_table_ = new unsigned char[table_size_ / bits_per_char];
       generate_unique_salt();
-      for (std::size_t i = 0; i < (table_size_ / bits_per_char); i++)
-      {
-         hash_table_[i] = static_cast<unsigned char>(0x0);
-      }
+      std::fill_n(hash_table_,(table_size_ / bits_per_char),0x00);
    }
 
    bloom_filter(const bloom_filter& filter)
    {
-      this->operator =(filter);
+      this->operator=(filter);
    }
 
    bloom_filter& operator = (const bloom_filter& filter)
    {
-      salt_count_          = filter.salt_count_;
-      table_size_          = filter.table_size_;
-      element_count_       = filter.element_count_;
-      random_seed_         = filter.random_seed_;
+      salt_count_ = filter.salt_count_;
+      table_size_ = filter.table_size_;
+      predicted_element_count_ = filter.predicted_element_count_;
+      inserted_element_count_ = filter.inserted_element_count_;
+      random_seed_ = filter.random_seed_;
       false_positive_probability_ = filter.false_positive_probability_;
       delete[] hash_table_;
       hash_table_ = new unsigned char[table_size_ / bits_per_char];
@@ -88,21 +88,49 @@ public:
       delete[] hash_table_;
    }
 
-   void insert(const std::string& key)
+   inline bool operator!() const
+   {
+      return (0 == table_size_);
+   }
+
+   inline void clear()
+   {
+      std::fill_n(hash_table_,(table_size_ / bits_per_char),0x00);
+      inserted_element_count_ = 0;
+   }
+
+   inline void insert(const unsigned char* key_begin, std::size_t length)
    {
       for(std::vector<bloom_type>::iterator it = salt_.begin(); it != salt_.end(); ++it)
       {
-         std::size_t bit_index = hash_ap(key,(*it)) % table_size_;
+         std::size_t bit_index = hash_ap(key_begin,length,(*it)) % table_size_;
          hash_table_[bit_index / bits_per_char] |= bit_mask[bit_index % bits_per_char];
       }
+      ++inserted_element_count_;
    }
 
-   bool contains(const std::string& key) const
+   template<typename T>
+   inline void insert(const T& t)
+   {
+      insert(reinterpret_cast<const unsigned char*>(&t),sizeof(T));
+   }
+
+   inline void insert(const std::string& key)
+   {
+      insert(reinterpret_cast<const unsigned char*>(key.c_str()),key.size());
+   }
+
+   inline void insert(const char* data, const std::size_t& length)
+   {
+      insert(reinterpret_cast<const unsigned char*>(data),length);
+   }
+
+   inline bool contains(const unsigned char* key_begin, std::size_t length) const
    {
       for(std::vector<bloom_type>::const_iterator it = salt_.begin(); it != salt_.end(); ++it)
       {
-         std::size_t bit_index = hash_ap(key,(*it)) % table_size_;
-         std::size_t bit       = bit_index % bits_per_char;
+         std::size_t bit_index = hash_ap(key_begin,length,(*it)) % table_size_;
+         std::size_t bit = bit_index % bits_per_char;
          if ((hash_table_[bit_index / bits_per_char] & bit_mask[bit]) != bit_mask[bit])
          {
             return false;
@@ -111,9 +139,47 @@ public:
       return true;
    }
 
-   std::size_t size() { return table_size_; }
+   template<typename T>
+   inline bool contains(const T& t) const
+   {
+      return contains(reinterpret_cast<const unsigned char*>(&t),static_cast<std::size_t>(sizeof(T)));
+   }
 
-   bloom_filter& operator&=(const bloom_filter& filter)
+   inline bool contains(const std::string& key) const
+   {
+      return contains(reinterpret_cast<const unsigned char*>(key.c_str()),key.size());
+   }
+
+   inline bool contains(const char* data, const std::size_t& length)
+   {
+      return contains(reinterpret_cast<const unsigned char*>(data),length);
+   }
+
+   inline std::size_t size() const
+   {
+      return table_size_;
+   }
+
+   inline std::size_t element_count() const
+   {
+      return inserted_element_count_;
+   }
+
+   inline double effective_fpp() const
+   {
+      /*
+        Note:
+        The effective false positive probability is calculated using the
+        designated table size and hash function count in conjunction with
+        the current number of inserted elements - not the user defined
+        predicated/expected number of inserted elements.
+
+      */
+      static const double e = 2.71828182845904523536;
+      return std::pow(1.0 - std::pow(e, -1.0 * salt_.size() * inserted_element_count_ / table_size_), 1.0 * salt_.size());
+   }
+
+   bloom_filter& operator &= (const bloom_filter& filter)
    {
       /* intersection */
       if (
@@ -130,7 +196,7 @@ public:
       return *this;
    }
 
-   bloom_filter& operator|=(const bloom_filter& filter)
+   bloom_filter& operator |= (const bloom_filter& filter)
    {
       /* union */
       if (
@@ -147,7 +213,7 @@ public:
       return *this;
    }
 
-   bloom_filter& operator^=(const bloom_filter& filter)
+   bloom_filter& operator ^= (const bloom_filter& filter)
    {
       /* difference */
       if (
@@ -168,17 +234,31 @@ private:
 
    void generate_unique_salt()
    {
-      const unsigned int predef_salt_count = 32;
+      /*
+        Note:
+        A distinct hash function need not be implementation-wise
+        distinct. In the current implementation "seeding" a common
+        hash function with different values seems to be adequate.
+      */
+      const unsigned int predef_salt_count = 64;
       static const bloom_type predef_salt[predef_salt_count] =
                                    {
-                                     0xAAAAAAAA, 0x55555555, 0x33333333, 0xCCCCCCCC,
-                                     0x66666666, 0x99999999, 0xB5B5B5B5, 0x4B4B4B4B,
-                                     0xAA55AA55, 0x55335533, 0x33CC33CC, 0xCC66CC66,
-                                     0x66996699, 0x99B599B5, 0xB54BB54B, 0x4BAA4BAA,
-                                     0xAA33AA33, 0x55CC55CC, 0x33663366, 0xCC99CC99,
-                                     0x66B566B5, 0x994B994B, 0xB5AAB5AA, 0xAAAAAA33,
-                                     0x555555CC, 0x33333366, 0xCCCCCC99, 0x666666B5,
-                                     0x9999994B, 0xB5B5B5AA, 0xFFFFFFFF, 0xFFFF0000
+                                      0xAAAAAAAA, 0x55555555, 0x33333333, 0xCCCCCCCC,
+                                      0x66666666, 0x99999999, 0xB5B5B5B5, 0x4B4B4B4B,
+                                      0xAA55AA55, 0x55335533, 0x33CC33CC, 0xCC66CC66,
+                                      0x66996699, 0x99B599B5, 0xB54BB54B, 0x4BAA4BAA,
+                                      0xAA33AA33, 0x55CC55CC, 0x33663366, 0xCC99CC99,
+                                      0x66B566B5, 0x994B994B, 0xB5AAB5AA, 0xAAAAAA33,
+                                      0x555555CC, 0x33333366, 0xCCCCCC99, 0x666666B5,
+                                      0x9999994B, 0xB5B5B5AA, 0xFFFFFFFF, 0xFFFF0000,
+                                      0xB823D5EB, 0xC1191CDF, 0xF623AEB3, 0xDB58499F,
+                                      0xC8D42E70, 0xB173F616, 0xA91A5967, 0xDA427D63,
+                                      0xB1E8A2EA, 0xF6C0D155, 0x4909FEA3, 0xA68CC6A7,
+                                      0xC395E782, 0xA26057EB, 0x0CD5DA28, 0x467C5492,
+                                      0xF15E6982, 0x61C6FAD3, 0x9615E352, 0x6E9E355A,
+                                      0x689B563E, 0x0C9831A8, 0x6753C18B, 0xA622689B,
+                                      0x8CA63C47, 0x42CC2884, 0x8E89919B, 0x6EDBD7D3,
+                                      0x15B6796C, 0x1D6FDFE4, 0x63FF9092, 0xE7401432
                                    };
 
       if (salt_count_ <= predef_salt_count)
@@ -188,6 +268,12 @@ private:
                    std::back_inserter(salt_));
           for(unsigned int i = 0; i < salt_.size(); ++i)
           {
+            /*
+              Note:
+              This is done to integrate the user defined random seed,
+              so as to allow for the generation of unique bloom filter
+              instances.
+            */
             salt_[i] = salt_[i] * salt_[(i + 3) % salt_.size()] + random_seed_;
           }
       }
@@ -218,35 +304,43 @@ private:
 
    void find_optimal_parameters()
    {
-      double min_m  = std::numeric_limits<double>::infinity();
-      double min_k  = 0.0;
+      /*
+        Note:
+        The following will attempt to find the number of hash functions
+        and minimum amount of storage bits required to construct a bloom
+        filter consistent with the user defined false positive probability
+        and estimated element insertion count.
+      */
+
+      double min_m = std::numeric_limits<double>::infinity();
+      double min_k = 0.0;
       double curr_m = 0.0;
       for(double k = 0.0; k < 1000.0; k++)
       {
-         if ((curr_m = ((- k * element_count_) / std::log(1 - std::pow(false_positive_probability_, 1.0 / k)))) < min_m)
+         if ((curr_m = ((- k * predicted_element_count_) / std::log(1.0 - std::pow(false_positive_probability_, 1.0 / k)))) < min_m)
          {
             min_m = curr_m;
             min_k = k;
          }
       }
-      salt_count_  = static_cast<std::size_t>(min_k);
-      table_size_  = static_cast<std::size_t>(min_m);
+
+      salt_count_ = static_cast<std::size_t>(min_k);
+      table_size_ = static_cast<std::size_t>(min_m);
       table_size_ += (((table_size_ % bits_per_char) != 0) ? (bits_per_char - (table_size_ % bits_per_char)) : 0);
    }
 
-   bloom_type hash_ap(const std::string& str,bloom_type hash) const
+   bloom_type hash_ap(const unsigned char* begin, std::size_t remaining_length, bloom_type hash) const
    {
-      std::size_t remaining_length = str.size();
-      std::size_t i = 0;
+      const unsigned char* it = begin;
       while(remaining_length >= 2)
       {
-         hash ^=    (hash <<  7) ^ str[i++] * (hash >> 3);
-         hash ^= (~((hash << 11) + str[i++] ^ (hash >> 5)));
+         hash ^=    (hash <<  7) ^  (*it++) * (hash >> 3);
+         hash ^= (~((hash << 11) + ((*it++) ^ (hash >> 5))));
          remaining_length -= 2;
       }
       if (remaining_length)
       {
-         hash ^= (hash <<  7) ^ str[i] * (hash >> 3);
+         hash ^= (hash <<  7) ^ (*it) * (hash >> 3);
       }
       return hash;
    }
@@ -255,10 +349,12 @@ private:
    unsigned char*          hash_table_;
    std::size_t             salt_count_;
    std::size_t             table_size_;
-   std::size_t             element_count_;
+   std::size_t             predicted_element_count_;
+   std::size_t             inserted_element_count_;
    std::size_t             random_seed_;
    double                  false_positive_probability_;
 };
+
 
 
 bloom_filter operator & (const bloom_filter& a, const bloom_filter& b)
@@ -282,16 +378,18 @@ bloom_filter operator ^ (const bloom_filter& a, const bloom_filter& b)
    return result;
 }
 
-
 #endif
 
 
 
 /*
-   Note:
-   If it can be guaranteed that bits_per_char will be of the form 2^n then
-   the following optimization can be used:
+  Note 1:
+  If it can be guaranteed that bits_per_char will be of the form 2^n then
+  the following optimization can be used:
 
-   hash_table[bit_index >> n] |= bit_mask[bit_index & (bits_per_char - 1)];
+  hash_table[bit_index >> n] |= bit_mask[bit_index & (bits_per_char - 1)];
 
+  Note 2:
+  For performance reasons where possible when allocating memory it should
+  be aligned (aligned_alloc) according to the architecture being used.
 */
