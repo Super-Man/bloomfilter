@@ -44,6 +44,9 @@ int main()
 
    std::cout << "Loading list....";
    read_file("word-list.txt",word_list);
+   //read_file("word-list-large.txt",word_list);
+   //read_file("word-list-extra-large.txt",word_list);
+   //read_file("random-list.txt",word_list);
    std::cout << " Complete." << std::endl;
 
    if (word_list.empty())
@@ -185,6 +188,7 @@ void generate_outliers(const std::vector<std::string>& word_list, std::deque<std
       outliers.push_back(reverse(s0 + s1 + s3));
       outliers.push_back(reverse(s0 + s1 + s2 + s3 + s4 + s5));
    }
+
    std::sort(outliers.begin(),outliers.end());
 }
 
@@ -202,16 +206,17 @@ void purify_outliers(const std::vector<std::string>& word_list, std::deque<std::
                          set2.begin(),set2.end(),
                          std::back_inserter(intersect_list));
 
+   std::sort(intersect_list.begin(),intersect_list.end());
+
    if(!intersect_list.empty())
    {
-      for(std::deque<std::string>::iterator it = intersect_list.begin(); it != intersect_list.end(); ++it)
+      std::deque<std::string> new_outliers;
+      for(std::deque<std::string>::iterator it = outliers.begin(); it != outliers.end(); ++it)
       {
-         std::deque<std::string>::iterator dup_it = std::lower_bound(outliers.begin(),outliers.end(),*it);
-         if(dup_it != outliers.end())
-         {
-            outliers.erase(dup_it);
-         }
+         std::deque<std::string>::iterator dup_it = std::lower_bound(intersect_list.begin(),intersect_list.end(),*it);
+         if(dup_it == intersect_list.end())
+            new_outliers.push_back(*it);
       }
+      outliers.swap(new_outliers);
    }
 }
-
