@@ -43,9 +43,12 @@ static const unsigned char bit_mask[bits_per_char] = {
 
 class bloom_filter
 {
-public:
+protected:
 
    typedef unsigned int bloom_type;
+   typedef unsigned char cell_type;
+
+public:
 
    bloom_filter(const std::size_t& predicted_element_count,
                 const double& false_positive_probability,
@@ -57,7 +60,7 @@ public:
      desired_false_positive_probability_(false_positive_probability)
    {
       find_optimal_parameters();
-      hash_table_ = new unsigned char[table_size_ / bits_per_char];
+      hash_table_ = new cell_type[table_size_ / bits_per_char];
       generate_unique_salt();
       std::fill_n(hash_table_,(table_size_ / bits_per_char),0x00);
    }
@@ -76,7 +79,7 @@ public:
       random_seed_ = filter.random_seed_;
       desired_false_positive_probability_ = filter.desired_false_positive_probability_;
       delete[] hash_table_;
-      hash_table_ = new unsigned char[table_size_ / bits_per_char];
+      hash_table_ = new cell_type[table_size_ / bits_per_char];
       std::copy(filter.hash_table_,filter.hash_table_ + (table_size_ / bits_per_char),hash_table_);
       salt_.clear();
       std::copy(filter.salt_.begin(),filter.salt_.end(),std::back_inserter(salt_));
@@ -464,11 +467,11 @@ public:
       new_table_size -= (((new_table_size % bits_per_char) != 0) ? (new_table_size % bits_per_char) : 0);
       if ((bits_per_char > new_table_size) || (new_table_size >= original_table_size)) return false;
       desired_false_positive_probability_ = effective_fpp();
-      unsigned char* tmp = new unsigned char[new_table_size / bits_per_char];
+      cell_type* tmp = new cell_type[new_table_size / bits_per_char];
       std::copy(hash_table_, hash_table_ +  (new_table_size / bits_per_char), tmp);
-      unsigned char* it = hash_table_ + (new_table_size / bits_per_char);
-      unsigned char* end = hash_table_ + (original_table_size / bits_per_char);
-      unsigned char* it_tmp = tmp;
+      cell_type* it = hash_table_ + (new_table_size / bits_per_char);
+      cell_type* end = hash_table_ + (original_table_size / bits_per_char);
+      cell_type* it_tmp = tmp;
       while(it != end) { *(it_tmp++) |= (*it++); }
       delete[] hash_table_;
       hash_table_ = tmp;

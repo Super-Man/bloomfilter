@@ -216,13 +216,13 @@ void purify_outliers(const std::vector<std::string>& word_list, std::deque<std::
 
    if(!intersect_list.empty())
    {
-      for(std::deque<std::string>::iterator it = intersect_list.begin(); it != intersect_list.end(); ++it)
+      std::deque<std::string> new_outliers;
+      for(std::deque<std::string>::iterator it = outliers.begin(); it != outliers.end(); ++it)
       {
-         std::deque<std::string>::iterator dup_it = std::lower_bound(outliers.begin(),outliers.end(),*it);
-         if(dup_it != outliers.end())
-         {
-            outliers.erase(dup_it);
-         }
+         std::deque<std::string>::iterator dup_it = std::lower_bound(intersect_list.begin(),intersect_list.end(),*it);
+         if(dup_it == intersect_list.end())
+            new_outliers.push_back(*it);
       }
+      outliers.swap(new_outliers);
    }
 }
