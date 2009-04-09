@@ -3,7 +3,7 @@
  *                                                                        *
  *                           Open Bloom Filter                            *
  *                                                                        *
- * Description: Demonstration of Open Bloom Filter                        *
+ * Description: Demonstration of a Bloom Filter                           *
  * Author: Arash Partow - 2000                                            *
  * URL: http://www.partow.net                                             *
  * URL: http://www.partow.net/programming/hashfunctions/index.html        *
@@ -17,7 +17,27 @@
  **************************************************************************
 */
 
+
+
+/*
+   Description: This example will demonstrate how to instantiate a Bloom filter,
+                insert strings and then query the inserted strings and a set of
+                outlier strings for membership status in the filter.
+                Furthermore this process will be carried out upon 1000 unique
+                instances of Bloom filter. The objective is to empirically
+                determine which "random" seed that when used to construct a
+                Bloom filter will provided the smallest observed false positive
+                probability for the given sets of data. The optimal seed will
+                be the one associated with the round that has the smallest
+                difference percentage of false positive probability against
+                the user specified false positive probability.
+*/
+
+
+
 #include <iostream>
+#include <cstddef>
+#include <cstdio>
 #include <fstream>
 #include <iterator>
 #include <algorithm>
@@ -45,10 +65,10 @@ int main()
    std::deque<std::string> outliers;
 
    std::cout << "Loading list....";
-   read_file("word-list.txt",word_list);
+   //read_file("word-list.txt",word_list);
    //read_file("word-list-large.txt",word_list);
    //read_file("word-list-extra-large.txt",word_list);
-   //read_file("random-list.txt",word_list);
+   read_file("random-list.txt",word_list);
    std::cout << " Complete." << std::endl;
 
    if (word_list.empty())
@@ -61,19 +81,20 @@ int main()
    purify_outliers(word_list,outliers);
 
    unsigned int random_seed = 0;
-   double total_false_positive = 0.0;
-
    std::size_t word_list_storage_size = 0;
+
    for(unsigned int i = 0; i < word_list.size(); ++i)
    {
       word_list_storage_size += word_list[i].size();
    }
 
    std::size_t total_number_of_queries = 0;
+
+   printf("Round\tQueries \tFPQ   \tIPFP    \tPFP     \tDPFP    \tTvD     \n");
+
    while(random_seed < 1000)
    {
       double probability_of_false_positive = 1.0 / (1.0 * word_list.size());
-      std::size_t current_false_positive =  0;
 
       bloom_filter filter(word_list.size(),probability_of_false_positive,random_seed++);
 
@@ -86,31 +107,29 @@ int main()
          return 1;
       }
 
+      std::size_t total_false_positive = 0;
+
       for(std::deque<std::string>::iterator it = outliers.begin(); it != outliers.end(); ++it)
       {
          if (filter.contains(*it))
          {
-            //std::cout << "ERROR: key that does not exist found! => " << (*it) << std::endl;
             ++total_false_positive;
-            ++current_false_positive;
          }
       }
 
       total_number_of_queries += (outliers.size() + word_list.size());
 
       // Overall false positive probability
-      double current_pfp = total_false_positive / (1.0 * total_number_of_queries);
+      double pfp = total_false_positive / (1.0 * outliers.size());
 
-      // Current false positive probability
-      //double current_pfp = current_false_positive /  (1.0 * total_numnber_of_quries);
-
-      std::cout << "Round:"     << random_seed <<
-                   "\tQueries:" << total_number_of_queries <<
-                   "\tFPQ:"     << total_false_positive << //Queries with False Positives
-                   "\tIPFP:"    << probability_of_false_positive <<
-                   "\tPFP:"     << current_pfp <<
-                   "\tDPFP:"    << (100.0 * current_pfp) / probability_of_false_positive << "%" <<
-                   "\tTvD:"     << (100.0 * filter.size()) / (bits_per_char * word_list_storage_size) << "%" << std::endl;
+      printf("%6d\t%8d\t%6d\t%8.7f\t%8.7f\t%8.6f\t%8.6f\n",
+              random_seed,
+              total_number_of_queries,
+              total_false_positive,
+              probability_of_false_positive,
+              pfp,
+              (100.0 * pfp) / probability_of_false_positive,
+              (100.0 * filter.size()) / (bits_per_char * word_list_storage_size));
    }
 
    return 0;
@@ -154,7 +173,7 @@ void generate_outliers(const std::vector<std::string>& word_list, std::deque<std
       outliers.push_back(ns);
    }
 
-   static const std::size_t rand_str_size = 120;
+   static const std::size_t rand_str_size = 240;
    static const std::string rand_str[rand_str_size] =
                   {
                      "MJTtT","td3rC","A5JNR","1yL5B","rQnJk","jNKYF","CD0XD","pFLSG",
@@ -171,9 +190,28 @@ void generate_outliers(const std::vector<std::string>& word_list, std::deque<std
                      "KeUwW","lIKhO","RfPv3","dK5wE","1X7qu","tRwEn","1c03P","GwHCl",
                      "CsJaO","zl4j1","e0aEc","Uskgi","rgTGR","jyR4g","Tt6l4","lRoaw",
                      "94ult","qZwBX","eYW8S","Qf6UH","AbV56","N1hJq","JIaVe","8LHEx",
-                     "DeNbS","30I0a","hm6qw","3jcaO","4WkuA","mQ219","Gb81C","yx4HM"
+                     "DeNbS","30I0a","hm6qw","3jcaO","4WkuA","mQ219","Gb81C","yx4HM",
+                     "Chlqfi9S1y", "BMwUgVFu2X", "ZmpEGOVrVe", "13ggJxrPkC", "fcJJpyMGjm", "9T00Dv4ZAb",
+                     "p3YRcP7M2o", "sR0qNUXCHv", "gCxWZbJ6rb", "R4YtzRXXUl", "vwyYz5j6pY", "XPWUvLXhJ7",
+                     "7PwfnVVb7U", "1f34Q6hOYz", "1EM2abZY61", "0a6Ivi4S0a", "Teq2LrQs2T", "dWXLCgWHc8",
+                     "LawMv7ujn4", "N8VFgbZQx5", "tfvHHxoDgi", "ImwYgXA2tf", "KkIES9NqZO", "ajcz0qjjda",
+                     "6Vz28vlGs9", "VMCc5W8cCt", "BiQB8BRJ98", "43CpOJSMpA", "jfBJdqwXcU", "ecHR9EO2ib",
+                     "LH7CcXyCZ7", "JntqGSgSpa", "0MbTMpZPFW", "5FJSdiCXzR", "5gda2AhA2x", "lrDFc1lnXk",
+                     "zrEwECHvjs", "B0JldDxFa1", "6DYal4QxKa", "Hsqx6kP2S4", "zZwnALSuFh", "Shh4ISZcKW",
+                     "P9VDaNSk7Z", "mEI2PLSCO6", "WyTyrQORtu", "IvJyMMRgh3", "Q6pgJq8Nkv", "dhOgR3tDAD",
+                     "Y9h6bVgbxO", "wA15tiOPTm", "8TaIKf1zCO", "z75dzabHBs", "AS6OPnwoJI", "2DSZka9Auj",
+                     "QLzUjV2CWs", "KZSN2SVhia", "7ttYKWF2ue", "1Zxfu7B2ST", "RnkpmwjsCi", "YpcSIzaqx5",
+                     "RDEwFD9gmX", "Nlx3V4Cjw4", "9ZdvITOj8M", "httUPWMNXO", "Ypv9PjxGwa", "LlwyNolNnH",
+                     "6xpJOht47a", "tbmz4WIdcG", "OwzuVDlb7D", "PBQKJxo8DQ", "uVnMQn7hK6", "rlnZINuDUa",
+                     "2feyyYukPa", "teOlpKuDBn", "LxBSWh0dL1", "Onyb7r4Jp0", "bZxXE6xOXg", "d9NSvNTunQ",
+                     "ONerLBic32", "8mar4rKmFk", "5cCN9uwaCg", "ElVrYOHHMv", "YF6Og8DX40", "OgiCwpCQ5a",
+                     "K6nSRZVxdR", "gqyXXXoVFW", "ulyRYizcBP", "khUx31K5UR", "qZFRzVthju", "pQBh0vnB20",
+                     "dk8NIN7ajy", "XP7ed1OjZx", "IRYNwA5iFR", "hiSEBhTukC", "Ns4jJ3jzGo", "dYoCSxjIvM",
+                     "HzGLbl5i1g", "baizENd4ko", "6rCqGBO8t1", "QWGfC8UaA7", "JFhRfxQe4K", "8R4W6IWANz",
+                     "2TnWf1w7JH", "0z69e0wcoG", "8SN1mRHCY7", "oFGCYHHwGX", "G8xqnBgxjO", "6B3SAOayHt",
+                     "XRW3ZSG1gw", "WcIjTxMxOM", "wNqCAIaTb2", "gO4em4HW8H", "TgGFSMEtbG", "WiwmbEw3QA",
+                     "D2xshYUgpu", "xRUZCQVzBs", "nCnUmMgIjE", "p4Ewt1yCJr", "MeOjDcaMY5", "1XelMeXiiI"
                   };
-
 
    for(unsigned int i = 0; i < rand_str_size; ++i)
    {
@@ -205,8 +243,8 @@ void purify_outliers(const std::vector<std::string>& word_list, std::deque<std::
    std::set<std::string> set1;
    std::set<std::string> set2;
 
-   std::copy(word_list.begin(),word_list.end(),std::inserter(set1,set1.begin()));
-   std::copy(outliers.begin(),outliers.end(),std::inserter(set2,set2.begin()));
+   std::copy(word_list.begin(), word_list.end(),std::inserter(set1,set1.begin()));
+   std::copy(outliers.begin(), outliers.end(), std::inserter(set2,set2.begin()));
 
    std::deque<std::string> intersect_list;
 
@@ -214,13 +252,14 @@ void purify_outliers(const std::vector<std::string>& word_list, std::deque<std::
                          set2.begin(),set2.end(),
                          std::back_inserter(intersect_list));
 
+   std::sort(intersect_list.begin(),intersect_list.end());
+
    if(!intersect_list.empty())
    {
       std::deque<std::string> new_outliers;
       for(std::deque<std::string>::iterator it = outliers.begin(); it != outliers.end(); ++it)
       {
-         std::deque<std::string>::iterator dup_it = std::lower_bound(intersect_list.begin(),intersect_list.end(),*it);
-         if(dup_it == intersect_list.end())
+         if(!std::binary_search(intersect_list.begin(),intersect_list.end(),*it))
             new_outliers.push_back(*it);
       }
       outliers.swap(new_outliers);
