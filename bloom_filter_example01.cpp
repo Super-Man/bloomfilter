@@ -65,10 +65,10 @@ int main()
    std::deque<std::string> outliers;
 
    std::cout << "Loading list....";
-   //read_file("word-list.txt",word_list);
+   read_file("word-list.txt",word_list);
    //read_file("word-list-large.txt",word_list);
    //read_file("word-list-extra-large.txt",word_list);
-   read_file("random-list.txt",word_list);
+   //read_file("random-list.txt",word_list);
    std::cout << " Complete." << std::endl;
 
    if (word_list.empty())
