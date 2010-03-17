@@ -46,6 +46,7 @@
 
 #include "bloom_filter.hpp"
 
+bool load_word_list(int argc, char* argv[], std::vector<std::string>& word_list);
 
 template <class T,
           class Allocator,
@@ -55,21 +56,13 @@ void read_file(const std::string& file_name, Container<T, Allocator>& c);
 void generate_outliers(const std::vector<std::string>& word_list, std::deque<std::string>& outliers);
 void purify_outliers(const std::vector<std::string>& word_list,std::deque<std::string>& outliers);
 
-int main()
+int main(int argc, char* argv[])
 {
    std::vector<std::string> word_list;
    std::deque<std::string> outliers;
 
-   std::cout << "Loading list....";
-   read_file("word-list.txt",word_list);
-   //read_file("word-list-large.txt",word_list);
-   //read_file("word-list-extra-large.txt",word_list);
-   //read_file("random-list.txt",word_list);
-   std::cout << " Complete." << std::endl;
-
-   if (word_list.empty())
+   if (!load_word_list(argc,argv,word_list))
    {
-      std::cout << "ERROR: Input file invalid!" << std::endl;
       return 1;
    }
 
@@ -78,7 +71,7 @@ int main()
 
    unsigned int random_seed = 0xA57EC3B2;
 
-   double desired_probability_of_false_positive = 1.0 / (1.0 * word_list.size());
+   const double desired_probability_of_false_positive = 1.0 / word_list.size();
 
    compressible_bloom_filter filter(word_list.size(),desired_probability_of_false_positive,random_seed);
 
@@ -115,6 +108,40 @@ int main()
    return 0;
 }
 
+bool load_word_list(int argc, char* argv[], std::vector<std::string>& word_list)
+{
+   static const std::string wl_list[] =
+                     { "word-list.txt",
+                       "word-list-large.txt",
+                       "word-list-extra-large.txt",
+                       "random-list.txt"
+                     };
+
+   std::size_t index = 0;
+
+   if (2 == argc)
+   {
+      const std::size_t wl_list_size = sizeof(wl_list) / sizeof(std::string);
+      if (index >= wl_list_size)
+      {
+         std::cout << "Invalid world list index: " << index << std::endl;
+         return false;
+      }
+      index = ::atoi(argv[1]);
+   }
+
+   std::cout << "Loading list " << wl_list[index] << ".....";
+   read_file(wl_list[index],word_list);
+
+   if (word_list.empty())
+   {
+      std::cout << "No word list - Either none requested, or desired word list could not be loaded." << std::endl;
+      return false;
+   }
+   else
+      std::cout << " Complete." << std::endl;
+   return true;
+}
 
 template <class T,
           class Allocator,
@@ -154,9 +181,16 @@ void generate_outliers(const std::vector<std::string>& word_list, std::deque<std
       outliers.push_back(ns);
    }
 
-   static const std::size_t rand_str_size = 240;
-   static const std::string rand_str[rand_str_size] =
+   static const std::string rand_str[] =
                   {
+                     "oD5l", "pccW", "5yHt", "ndaN", "OaJh", "tWPc", "Cr9C", "a9zE",
+                     "H1wL", "yo1V", "16D7", "f2WR", "0MVQ", "PkKn", "PlVa", "MvzL",
+                     "9Csl", "JQTv", "IveD", "FDVS", "Q7HE", "QgcF", "Q9Vo", "V8zJ",
+                     "EJWT", "GuLC", "rM3d", "PJF4", "HXPW", "qKx3", "ztRP", "t4KP",
+                     "m1zV", "fn12", "B1QP", "Jr4I", "Mf8M", "4jBd", "anGR", "Pipt",
+                     "QHon", "GNlc", "UeXM", "mVM5", "ABI8", "RhB3", "5h2s", "hOYo",
+                     "gaId", "DX40", "THMu", "EwlP", "n9Mz", "oC1S", "BfMl", "uCZ1",
+                     "G2bA", "MOH9", "zZ0O", "PKDO", "3nRU", "Z6ie", "4cso", "LnQO",
                      "MJTtT","td3rC","A5JNR","1yL5B","rQnJk","jNKYF","CD0XD","pFLSG",
                      "fxO1a","CAjBE","ORk4e","0LERI","R7d0x","Qqd7v","6Kih5","9tTCB",
                      "yCg9U","D2Tv7","XpNHn","6zeFQ","BT2cs","WGhKW","zTv6B","TTPFk",
@@ -193,7 +227,7 @@ void generate_outliers(const std::vector<std::string>& word_list, std::deque<std
                      "XRW3ZSG1gw", "WcIjTxMxOM", "wNqCAIaTb2", "gO4em4HW8H", "TgGFSMEtbG", "WiwmbEw3QA",
                      "D2xshYUgpu", "xRUZCQVzBs", "nCnUmMgIjE", "p4Ewt1yCJr", "MeOjDcaMY5", "1XelMeXiiI"
                   };
-
+   static const std::size_t rand_str_size = sizeof(rand_str) / sizeof(std::string);
 
    for(unsigned int i = 0; i < rand_str_size; ++i)
    {
