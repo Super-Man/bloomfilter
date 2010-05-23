@@ -480,7 +480,7 @@ private:
    inline virtual void compute_indices(const bloom_type& hash, std::size_t& bit_index, std::size_t& bit) const
    {
       bit_index = hash;
-      for(unsigned int j = 0; j < size_list.size(); bit_index %= size_list[j++]);
+      for(unsigned int j = 0; j < size_list.size(); bit_index %= size_list[j++]) ;
       bit = bit_index % bits_per_char;
    }
 
