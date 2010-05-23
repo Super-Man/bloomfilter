@@ -67,7 +67,6 @@ int main(int argc, char* argv[])
    }
 
    generate_outliers(word_list,outliers);
-   purify_outliers(word_list,outliers);
 
    unsigned int random_seed = 0xA57EC3B2;
 
@@ -164,6 +163,7 @@ std::string reverse(std::string str)
 
 void generate_outliers(const std::vector<std::string>& word_list, std::deque<std::string>& outliers)
 {
+   std::cout << "Generating outliers..... ";
    for(std::vector<std::string>::const_iterator it = word_list.begin(); it != word_list.end(); ++it)
    {
       if ((*it) != reverse((*it)))
@@ -251,8 +251,9 @@ void generate_outliers(const std::vector<std::string>& word_list, std::deque<std
       outliers.push_back(reverse(s0 + s1 + s3));
       outliers.push_back(reverse(s0 + s1 + s2 + s3 + s4 + s5));
    }
-
    std::sort(outliers.begin(),outliers.end());
+   purify_outliers(word_list,outliers);
+   std::cout << "Complete." << std::endl;
 }
 
 void purify_outliers(const std::vector<std::string>& word_list, std::deque<std::string>& outliers)

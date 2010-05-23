@@ -60,8 +60,8 @@ public:
      desired_false_positive_probability_(false_positive_probability)
    {
       find_optimal_parameters();
-      bit_table_ = new cell_type[table_size_ / bits_per_char];
       generate_unique_salt();
+      bit_table_ = new cell_type[table_size_ / bits_per_char];
       std::fill_n(bit_table_,(table_size_ / bits_per_char),0x00);
    }
 
@@ -105,9 +105,9 @@ public:
    {
       std::size_t bit_index = 0;
       std::size_t bit = 0;
-      for(std::vector<bloom_type>::iterator it = salt_.begin(); it != salt_.end(); ++it)
+      for(std::vector<bloom_type>::iterator itr = salt_.begin(); itr != salt_.end(); ++itr)
       {
-         compute_indices(hash_ap(key_begin,length,(*it)),bit_index,bit);
+         compute_indices(hash_ap(key_begin,length,(*itr)),bit_index,bit);
          bit_table_[bit_index / bits_per_char] |= bit_mask[bit];
       }
       ++inserted_element_count_;
@@ -116,6 +116,7 @@ public:
    template<typename T>
    inline void insert(const T& t)
    {
+      // Note: T must be a C++ POD type.
       insert(reinterpret_cast<const unsigned char*>(&t),sizeof(T));
    }
 
@@ -132,10 +133,10 @@ public:
    template<typename InputIterator>
    inline void insert(const InputIterator begin, const InputIterator end)
    {
-      InputIterator it = begin;
-      while(it != end)
+      InputIterator itr = begin;
+      while(itr != end)
       {
-         insert(*(it++));
+         insert(*(itr++));
       }
    }
 
@@ -173,14 +174,14 @@ public:
    template<typename InputIterator>
    inline InputIterator contains_all(const InputIterator begin, const InputIterator end) const
    {
-      InputIterator it = begin;
-      while(it != end)
+      InputIterator itr = begin;
+      while(itr != end)
       {
-         if (!contains(*it))
+         if (!contains(*itr))
          {
-            return it;
+            return itr;
          }
-         ++it;
+         ++itr;
       }
       return end;
    }
@@ -188,14 +189,14 @@ public:
    template<typename InputIterator>
    inline InputIterator contains_none(const InputIterator begin, const InputIterator end) const
    {
-      InputIterator it = begin;
-      while(it != end)
+      InputIterator itr = begin;
+      while(itr != end)
       {
-         if (contains(*it))
+         if (contains(*itr))
          {
-            return it;
+            return itr;
          }
-         ++it;
+         ++itr;
       }
       return end;
    }
@@ -352,16 +353,7 @@ protected:
          {
             bloom_type current_salt = static_cast<bloom_type>(rand()) * static_cast<bloom_type>(rand());
             if (0 == current_salt) continue;
-            bool duplicate_found = false;
-            for(std::vector<bloom_type>::iterator it = salt_.begin(); it != salt_.end(); ++it)
-            {
-               if (current_salt == (*it))
-               {
-                  duplicate_found = true;
-                  break;
-               }
-            }
-            if (!duplicate_found)
+            if (salt_.end() == std::find(salt_.begin(), salt_.end(), current_salt))
             {
                salt_.push_back(current_salt);
             }
