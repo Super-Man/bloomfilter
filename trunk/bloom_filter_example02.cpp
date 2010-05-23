@@ -95,7 +95,11 @@ int main(int argc, char* argv[])
 
       double pfp = total_false_positive / (1.0 * outliers.size());
 
-      printf("%11d\t%8.7f\t%8.7f\t%8.6f\n",filter.size(),filter.effective_fpp(),pfp,100.0 * (pfp / filter.effective_fpp()));
+      printf("%11llu\t%8.7f\t%8.7f\t%8.6f\n",
+             static_cast<unsigned long long>(filter.size()),
+             filter.effective_fpp(),
+             pfp,
+             100.0 * (pfp / filter.effective_fpp()));
 
       if (!filter.compress(5.0))
       {

@@ -115,10 +115,10 @@ int main(int argc, char* argv[])
       // Overall false positive probability
       double pfp = total_false_positive / (1.0 * outliers.size());
 
-      printf("%6d\t%8d\t%6d\t%8.7f\t%8.7f\t%8.6f\t%8.6f\n",
-              random_seed,
-              total_number_of_queries,
-              total_false_positive,
+      printf("%10llu\t%10llu\t%6llu\t%8.7f\t%8.7f\t%8.6f\t%8.6f\n",
+              static_cast<unsigned long long>(random_seed),
+              static_cast<unsigned long long>(total_number_of_queries),
+              static_cast<unsigned long long>(total_false_positive),
               desired_probability_of_false_positive,
               pfp,
               (100.0 * pfp) / desired_probability_of_false_positive,
